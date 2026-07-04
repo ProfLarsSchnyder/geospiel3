@@ -10,10 +10,12 @@ main{display:grid;grid-template-columns:330px 1fr;gap:20px;padding:20px}
 .panel{background:white;border-radius:24px;padding:22px;box-shadow:0 10px 25px #0002}
 #mapBox{background:white;border-radius:24px;padding:16px;box-shadow:0 10px 25px #0002;overflow:auto;height:calc(100vh - 120px)}
 #map svg{width:100%;height:auto;display:block}
-.map-part{cursor:pointer;transition:.12s}
-.map-part:hover{filter:brightness(1.18);stroke:#2563eb!important;stroke-width:2.5!important}
+.map-path{cursor:pointer;transition:.12s}
+.map-path:hover{filter:brightness(1.18);stroke:#2563eb!important;stroke-width:2.5!important}
 .group-hover{filter:brightness(1.18);stroke:#2563eb!important;stroke-width:2.5!important}
 .group-selected{fill:#22c55e!important;stroke:#15803d!important;stroke-width:3!important}
+#map text,#map tspan{pointer-events:none!important}
+.small{font-size:13px;color:#456}
 </style>
 </head>
 <body>
@@ -23,8 +25,10 @@ main{display:grid;grid-template-columns:330px 1fr;gap:20px;padding:20px}
 <main>
 <section class="panel">
 <h2>Kartentest</h2>
-<p>Klicke oder fahre über Jura-Teile: 62, 385, 386, 387, 388.</p>
+<p>Klicke auf Jura oder Jura-Teile.</p>
 <p id="info">Karte wird geladen...</p>
+<hr>
+<p class="small">Gezählt werden nur SVG-path-Flächen. Texte verschieben die Nummern nicht mehr.</p>
 </section>
 
 <section id="mapBox">
@@ -45,7 +49,7 @@ Object.entries(MANUAL_GROUPS).forEach(([id,g])=>{
   g.parts.forEach(n=>PART_TO_GROUP[n]=id);
 });
 
-let allParts = [];
+let pathParts = [];
 
 fetch("karte.svg")
 .then(r=>r.text())
@@ -58,12 +62,16 @@ fetch("karte.svg")
 });
 
 function setupMap(){
-  allParts = [...document.querySelectorAll("#map svg path, #map svg text, #map svg tspan, #map svg polygon, #map svg rect")];
+  document.querySelectorAll("#map text,#map tspan").forEach(el=>{
+    el.style.pointerEvents = "none";
+  });
 
-  allParts.forEach((el,index)=>{
+  pathParts = [...document.querySelectorAll("#map svg path")];
+
+  pathParts.forEach((el,index)=>{
     const nr = index + 1;
     el.dataset.partNr = nr;
-    el.classList.add("map-part");
+    el.classList.add("map-path");
 
     el.addEventListener("mouseenter",()=>{
       const groupId = PART_TO_GROUP[nr];
@@ -79,35 +87,35 @@ function setupMap(){
       e.stopPropagation();
       const groupId = PART_TO_GROUP[nr];
 
-      document.querySelectorAll(".group-selected").forEach(x=>x.classList.remove("group-selected"));
+      document.querySelectorAll(".group-selected").forEach(x=>{
+        x.classList.remove("group-selected");
+      });
 
       if(groupId){
         selectGroup(groupId);
         document.getElementById("info").textContent =
-          "Gewählt: " + MANUAL_GROUPS[groupId].name + " (" + groupId + ") über Teilfläche " + nr;
+          "Gewählt: " + MANUAL_GROUPS[groupId].name + " (" + groupId + ") über Fläche " + nr;
       }else{
         document.getElementById("info").textContent =
-          "Teilfläche " + nr + " ist noch keinem Kanton zugeordnet.";
+          "Fläche " + nr + " ist noch keinem Kanton zugeordnet.";
       }
     });
   });
 
   document.getElementById("info").textContent =
-    "Karte geladen. Erkannte Teile: " + allParts.length + ". Jura ist testweise gruppiert.";
+    "Karte geladen. Erkannte path-Flächen: " + pathParts.length + ". Jura ist testweise gruppiert.";
 }
 
 function highlightGroup(groupId,on){
-  const group = MANUAL_GROUPS[groupId];
-  group.parts.forEach(n=>{
-    const el = allParts[n-1];
+  MANUAL_GROUPS[groupId].parts.forEach(n=>{
+    const el = pathParts[n-1];
     if(el) el.classList.toggle("group-hover",on);
   });
 }
 
 function selectGroup(groupId){
-  const group = MANUAL_GROUPS[groupId];
-  group.parts.forEach(n=>{
-    const el = allParts[n-1];
+  MANUAL_GROUPS[groupId].parts.forEach(n=>{
+    const el = pathParts[n-1];
     if(el) el.classList.add("group-selected");
   });
 }
