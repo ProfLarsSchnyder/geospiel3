@@ -2,19 +2,18 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<title>Geospiel Schweiz</title>
+<title>Schweizer Geografie-Abenteuer</title>
 <style>
 body{margin:0;font-family:Arial,sans-serif;background:#eef7ff;color:#123}
 header{background:white;padding:18px 24px;box-shadow:0 4px 18px #0002;font-size:24px;font-weight:bold}
 main{display:grid;grid-template-columns:330px 1fr;gap:20px;padding:20px}
 .panel{background:white;border-radius:24px;padding:22px;box-shadow:0 10px 25px #0002}
 #mapBox{background:white;border-radius:24px;padding:16px;box-shadow:0 10px 25px #0002;overflow:auto;height:calc(100vh - 120px)}
-#map svg{width:100%;height:auto}
-#map text,#map tspan{pointer-events:none!important}
-.cantonArea{cursor:pointer;transition:.15s}
-.cantonArea:hover{filter:brightness(1.18);stroke:#2563eb!important;stroke-width:2!important}
-.cantonArea.selected{fill:#22c55e!important}
-#debug{font-size:13px;color:#456;line-height:1.4}
+#map svg{width:100%;height:auto;display:block}
+.map-part{cursor:pointer;transition:.12s}
+.map-part:hover{filter:brightness(1.18);stroke:#2563eb!important;stroke-width:2.5!important}
+.group-hover{filter:brightness(1.18);stroke:#2563eb!important;stroke-width:2.5!important}
+.group-selected{fill:#22c55e!important;stroke:#15803d!important;stroke-width:3!important}
 </style>
 </head>
 <body>
@@ -22,81 +21,95 @@ main{display:grid;grid-template-columns:330px 1fr;gap:20px;padding:20px}
 <header>🗺️ Schweizer Geografie-Abenteuer</header>
 
 <main>
-  <section class="panel">
-    <h2>Kartentest</h2>
-    <p>Klicke auf einen Kanton.</p>
-    <p id="info">Karte wird geladen...</p>
-    <hr>
-    <div id="debug"></div>
-  </section>
+<section class="panel">
+<h2>Kartentest</h2>
+<p>Klicke oder fahre über Jura-Teile: 62, 385, 386, 387, 388.</p>
+<p id="info">Karte wird geladen...</p>
+</section>
 
-  <section id="mapBox">
-    <div id="map"></div>
-  </section>
+<section id="mapBox">
+<div id="map"></div>
+</section>
 </main>
 
 <script>
+const MANUAL_GROUPS = {
+  JU: {
+    name: "Jura",
+    parts: [62, 385, 386, 387, 388]
+  }
+};
+
+const PART_TO_GROUP = {};
+Object.entries(MANUAL_GROUPS).forEach(([id,g])=>{
+  g.parts.forEach(n=>PART_TO_GROUP[n]=id);
+});
+
+let allParts = [];
+
 fetch("karte.svg")
-  .then(r => r.text())
-  .then(svg => {
-    document.getElementById("map").innerHTML = svg;
-    setupMap();
-  })
-  .catch(() => {
-    document.getElementById("info").textContent =
-      "Karte konnte nicht geladen werden. Prüfe, ob die Datei wirklich karte.svg heisst.";
-  });
+.then(r=>r.text())
+.then(svg=>{
+  document.getElementById("map").innerHTML = svg;
+  setupMap();
+})
+.catch(()=>{
+  document.getElementById("info").textContent = "Karte konnte nicht geladen werden.";
+});
 
 function setupMap(){
-  const svg = document.querySelector("#map svg");
+  allParts = [...document.querySelectorAll("#map svg path, #map svg text, #map svg tspan, #map svg polygon, #map svg rect")];
 
-  svg.querySelectorAll("text,tspan").forEach(el=>{
-    el.style.pointerEvents = "none";
-  });
+  allParts.forEach((el,index)=>{
+    const nr = index + 1;
+    el.dataset.partNr = nr;
+    el.classList.add("map-part");
 
-  const allPaths = [...svg.querySelectorAll("path")];
+    el.addEventListener("mouseenter",()=>{
+      const groupId = PART_TO_GROUP[nr];
+      if(groupId) highlightGroup(groupId,true);
+    });
 
-  const cantonPaths = allPaths.filter(p=>{
-    const box = p.getBBox();
-    const fill = (p.getAttribute("fill") || getComputedStyle(p).fill || "").toLowerCase();
-    const stroke = (p.getAttribute("stroke") || "").toLowerCase();
+    el.addEventListener("mouseleave",()=>{
+      const groupId = PART_TO_GROUP[nr];
+      if(groupId) highlightGroup(groupId,false);
+    });
 
-    const bigEnough = box.width > 5 && box.height > 5;
-    const notWater =
-      !fill.includes("blue") &&
-      !fill.includes("#a") &&
-      !fill.includes("rgb(170") &&
-      !fill.includes("rgb(173") &&
-      !fill.includes("rgb(180");
-    const notBorderOnly = fill !== "none" && fill !== "transparent";
-
-    return bigEnough && notWater && notBorderOnly;
-  });
-
-  cantonPaths.forEach((p,index)=>{
-    p.classList.add("cantonArea");
-    p.dataset.nr = index + 1;
-
-    p.addEventListener("click", e=>{
+    el.addEventListener("click",e=>{
       e.stopPropagation();
+      const groupId = PART_TO_GROUP[nr];
 
-      document.querySelectorAll(".cantonArea.selected").forEach(x=>{
-        x.classList.remove("selected");
-      });
+      document.querySelectorAll(".group-selected").forEach(x=>x.classList.remove("group-selected"));
 
-      p.classList.add("selected");
-
-      document.getElementById("info").textContent =
-        "Du hast Fläche " + p.dataset.nr + " angeklickt.";
+      if(groupId){
+        selectGroup(groupId);
+        document.getElementById("info").textContent =
+          "Gewählt: " + MANUAL_GROUPS[groupId].name + " (" + groupId + ") über Teilfläche " + nr;
+      }else{
+        document.getElementById("info").textContent =
+          "Teilfläche " + nr + " ist noch keinem Kanton zugeordnet.";
+      }
     });
   });
 
   document.getElementById("info").textContent =
-    "Karte geladen. Erkannte Flächen: " + cantonPaths.length;
+    "Karte geladen. Erkannte Teile: " + allParts.length + ". Jura ist testweise gruppiert.";
+}
 
-  document.getElementById("debug").innerHTML =
-    "Test: Fahre über AR, AI, BS, BL, ZG und kleine Flächen. " +
-    "Buchstaben sollten jetzt nicht mehr reagieren.";
+function highlightGroup(groupId,on){
+  const group = MANUAL_GROUPS[groupId];
+  group.parts.forEach(n=>{
+    const el = allParts[n-1];
+    if(el) el.classList.toggle("group-hover",on);
+  });
+}
+
+function selectGroup(groupId){
+  const group = MANUAL_GROUPS[groupId];
+  group.parts.forEach(n=>{
+    const el = allParts[n-1];
+    if(el) el.classList.add("group-selected");
+  });
 }
 </script>
 
