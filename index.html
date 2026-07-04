@@ -6,7 +6,7 @@
 <style>
 body{margin:0;font-family:Arial,sans-serif;background:#eef7ff;color:#123}
 header{background:white;padding:18px 24px;box-shadow:0 4px 18px #0002;font-size:24px;font-weight:bold}
-main{display:grid;grid-template-columns:330px 1fr;gap:20px;padding:20px}
+main{display:grid;grid-template-columns:340px 1fr;gap:20px;padding:20px}
 .panel{background:white;border-radius:24px;padding:22px;box-shadow:0 10px 25px #0002}
 #mapBox{background:white;border-radius:24px;padding:16px;box-shadow:0 10px 25px #0002;overflow:auto;height:calc(100vh - 120px)}
 #map svg{width:100%;height:auto;display:block}
@@ -14,8 +14,10 @@ main{display:grid;grid-template-columns:330px 1fr;gap:20px;padding:20px}
 .clickable-canton{cursor:pointer}
 .group-hover{filter:brightness(1.18);stroke:#2563eb!important;stroke-width:2.5!important}
 .group-selected{fill:#22c55e!important;stroke:#15803d!important;stroke-width:3!important}
+.debug-hover{stroke:#ff006e!important;stroke-width:4!important;filter:brightness(1.25)}
 #map text,#map tspan{pointer-events:none!important}
-.small{font-size:13px;color:#456}
+.small{font-size:13px;color:#456;line-height:1.4}
+code{background:#eef;padding:2px 5px;border-radius:6px}
 </style>
 </head>
 <body>
@@ -29,8 +31,11 @@ main{display:grid;grid-template-columns:330px 1fr;gap:20px;padding:20px}
 <p id="info">Karte wird geladen...</p>
 <hr>
 <p class="small">
-Nur zugeordnete Kantonsflächen reagieren. Seen, Grenzen, Länder, kleine Innenflächen und nicht zugewiesene Flächen lösen nichts aus.
+<strong>Debug für AR:</strong><br>
+Wenn du über eine Fläche fährst, erscheint hier die Nummer.
+Fahre über die echte AR-Fläche und notiere die Nummer.
 </p>
+<p class="small" id="debug">Aktuelle Fläche: –</p>
 </section>
 
 <section id="mapBox">
@@ -40,32 +45,32 @@ Nur zugeordnete Kantonsflächen reagieren. Seen, Grenzen, Länder, kleine Innenf
 
 <script>
 const CANTONS = {
-  GE:{name:"Genf",parts:[63,385,386,387,388]},
-  VD:{name:"Waadt",parts:[60,370,371,372,373]},
-  NE:{name:"Neuenburg",parts:[58,377,378,379,380,381,382,383,384]},
-  FR:{name:"Freiburg",parts:[57,59,330,331,332,333,334,335,336]},
-  BE:{name:"Bern",parts:[61,308,309,310,311]},
-  JU:{name:"Jura",parts:[62,389,390,391,392]},
-  SO:{name:"Solothurn",parts:[54,55,492,493]},
-  BL:{name:"Basel-Landschaft",parts:[51,56,496]},
-  BS:{name:"Basel-Stadt",parts:[52,494,495]},
-  AG:{name:"Aargau",parts:[48,353,354,355,356,357,358]},
-  LU:{name:"Luzern",parts:[47,312,313,314,315]},
-  VS:{name:"Wallis",parts:[45,374,375,376]},
-  OW:{name:"Obwalden",parts:[49,50,491]},
-  NW:{name:"Nidwalden",parts:[44]},
-  UR:{name:"Uri",parts:[43,316,317,318]},
-  TI:{name:"Tessin",parts:[37,365,366,367,368,369]},
-  SZ:{name:"Schwyz",parts:[46,319,320,321,322]},
-  ZG:{name:"Zug",parts:[39,328,329]},
-  ZH:{name:"Zürich",parts:[42,303,304,305,306,307]},
-  GL:{name:"Glarus",parts:[36,323,324,325,326,327]},
-  SH:{name:"Schaffhausen",parts:[38,40,281]},
-  TG:{name:"Thurgau",parts:[41,359,360,361,362,363,364]},
-  SG:{name:"St. Gallen",parts:[35,337,338,339,340,341,342]},
-  AI:{name:"Appenzell Innerrhoden",parts:[34,500]},
-  AR:{name:"Appenzell Ausserrhoden",parts:[498,499]},
-  GR:{name:"Graubünden",parts:[33,343,344,345,346,347,348,349,350,351,352]}
+  GE:{name:"Genf",parts:[63,385,386,387,388],paint:[63]},
+  VD:{name:"Waadt",parts:[60,370,371,372,373],paint:[60]},
+  NE:{name:"Neuenburg",parts:[58,377,378,379,380,381,382,383,384],paint:[58]},
+  FR:{name:"Freiburg",parts:[57,59,330,331,332,333,334,335,336],paint:[57,59]},
+  BE:{name:"Bern",parts:[61,308,309,310,311],paint:[61]},
+  JU:{name:"Jura",parts:[62,389,390,391,392],paint:[62]},
+  SO:{name:"Solothurn",parts:[54,55,492,493],paint:[54,55]},
+  BL:{name:"Basel-Landschaft",parts:[51,56,496],paint:[51,56]},
+  BS:{name:"Basel-Stadt",parts:[52,494,495],paint:[52]},
+  AG:{name:"Aargau",parts:[48,353,354,355,356,357,358],paint:[48]},
+  LU:{name:"Luzern",parts:[47,312,313,314,315],paint:[47]},
+  VS:{name:"Wallis",parts:[45,374,375,376],paint:[45]},
+  OW:{name:"Obwalden",parts:[49,50,491],paint:[49,50]},
+  NW:{name:"Nidwalden",parts:[44],paint:[44]},
+  UR:{name:"Uri",parts:[43,316,317,318],paint:[43]},
+  TI:{name:"Tessin",parts:[37,365,366,367,368,369],paint:[37]},
+  SZ:{name:"Schwyz",parts:[46,319,320,321,322],paint:[46]},
+  ZG:{name:"Zug",parts:[39,328,329],paint:[39]},
+  ZH:{name:"Zürich",parts:[42,303,304,305,306,307],paint:[42]},
+  GL:{name:"Glarus",parts:[36,323,324,325,326,327],paint:[36]},
+  SH:{name:"Schaffhausen",parts:[38,40,281],paint:[38,40]},
+  TG:{name:"Thurgau",parts:[41,359,360,361,362,363,364],paint:[41]},
+  SG:{name:"St. Gallen",parts:[35,337,338,339,340,341,342],paint:[35]},
+  AI:{name:"Appenzell Innerrhoden",parts:[34,500],paint:[34]},
+  AR:{name:"Appenzell Ausserrhoden",parts:[498,499],paint:[]},
+  GR:{name:"Graubünden",parts:[33,343,344,345,346,347,348,349,350,351,352],paint:[33]}
 };
 
 const IGNORE_PARTS = new Set([67,68]);
@@ -104,34 +109,54 @@ function setupMap(){
     el.dataset.partNr = nr;
     el.classList.add("map-path");
 
-    const cantonId = PART_TO_CANTON[nr];
+    el.addEventListener("mouseenter",()=>{
+      document.getElementById("debug").innerHTML =
+        "Aktuelle Fläche: <code>" + nr + "</code>";
+      el.classList.add("debug-hover");
 
-    if(cantonId && !IGNORE_PARTS.has(nr)){
-      el.classList.add("clickable-canton");
-
-      el.addEventListener("mouseenter",()=>{
+      const cantonId = PART_TO_CANTON[nr];
+      if(cantonId && !IGNORE_PARTS.has(nr)){
         highlightCanton(cantonId,true);
-      });
+      }
+    });
 
-      el.addEventListener("mouseleave",()=>{
+    el.addEventListener("mouseleave",()=>{
+      el.classList.remove("debug-hover");
+
+      const cantonId = PART_TO_CANTON[nr];
+      if(cantonId && !IGNORE_PARTS.has(nr)){
         highlightCanton(cantonId,false);
-      });
+      }
+    });
 
-      el.addEventListener("click",e=>{
-        e.stopPropagation();
-        selectCanton(cantonId,nr);
-      });
-    }else{
-      el.style.pointerEvents = "none";
+    el.addEventListener("click",e=>{
+      e.stopPropagation();
+
+      const cantonId = PART_TO_CANTON[nr];
+
+      if(!cantonId || IGNORE_PARTS.has(nr)){
+        return;
+      }
+
+      selectCanton(cantonId,nr);
+    });
+
+    if(PART_TO_CANTON[nr] && !IGNORE_PARTS.has(nr)){
+      el.classList.add("clickable-canton");
     }
   });
 
   document.getElementById("info").textContent =
-    "Karte geladen. 26 Kantone sind zugeordnet.";
+    "Karte geladen. 26 Kantone sind vorbereitet. AR-Fläche bitte mit Debug suchen.";
+}
+
+function getPaintParts(cantonId){
+  const c = CANTONS[cantonId];
+  return c.paint && c.paint.length ? c.paint : c.parts;
 }
 
 function highlightCanton(cantonId,on){
-  CANTONS[cantonId].parts.forEach(n=>{
+  getPaintParts(cantonId).forEach(n=>{
     const el = pathParts[n-1];
     if(el) el.classList.toggle("group-hover",on);
   });
@@ -142,7 +167,7 @@ function selectCanton(cantonId,clickedPart){
     x.classList.remove("group-selected");
   });
 
-  CANTONS[cantonId].parts.forEach(n=>{
+  getPaintParts(cantonId).forEach(n=>{
     const el = pathParts[n-1];
     if(el) el.classList.add("group-selected");
   });
