@@ -10,8 +10,8 @@ main{display:grid;grid-template-columns:330px 1fr;gap:20px;padding:20px}
 .panel{background:white;border-radius:24px;padding:22px;box-shadow:0 10px 25px #0002}
 #mapBox{background:white;border-radius:24px;padding:16px;box-shadow:0 10px 25px #0002;overflow:auto;height:calc(100vh - 120px)}
 #map svg{width:100%;height:auto;display:block}
-.map-path{cursor:pointer;transition:.12s}
-.map-path:hover{filter:brightness(1.18);stroke:#2563eb!important;stroke-width:2.5!important}
+.map-path{cursor:default;transition:.12s}
+.clickable-canton{cursor:pointer}
 .group-hover{filter:brightness(1.18);stroke:#2563eb!important;stroke-width:2.5!important}
 .group-selected{fill:#22c55e!important;stroke:#15803d!important;stroke-width:3!important}
 #map text,#map tspan{pointer-events:none!important}
@@ -25,10 +25,12 @@ main{display:grid;grid-template-columns:330px 1fr;gap:20px;padding:20px}
 <main>
 <section class="panel">
 <h2>Kartentest</h2>
-<p>Klicke auf Jura oder Jura-Teile.</p>
+<p>Klicke auf einen Kanton.</p>
 <p id="info">Karte wird geladen...</p>
 <hr>
-<p class="small">Gezählt werden nur SVG-path-Flächen. Texte verschieben die Nummern nicht mehr.</p>
+<p class="small">
+Nur zugeordnete Kantonsflächen reagieren. Seen, Grenzen, Länder, kleine Innenflächen und nicht zugewiesene Flächen lösen nichts aus.
+</p>
 </section>
 
 <section id="mapBox">
@@ -37,16 +39,40 @@ main{display:grid;grid-template-columns:330px 1fr;gap:20px;padding:20px}
 </main>
 
 <script>
-const MANUAL_GROUPS = {
-  JU: {
-    name: "Jura",
-    parts: [62, 389, 390, 391, 392]
-  }
+const CANTONS = {
+  GE:{name:"Genf",parts:[63,385,386,387,388]},
+  VD:{name:"Waadt",parts:[60,370,371,372,373]},
+  NE:{name:"Neuenburg",parts:[58,377,378,379,380,381,382,383,384]},
+  FR:{name:"Freiburg",parts:[57,59,330,331,332,333,334,335,336]},
+  BE:{name:"Bern",parts:[61,308,309,310,311]},
+  JU:{name:"Jura",parts:[62,389,390,391,392]},
+  SO:{name:"Solothurn",parts:[54,55,492,493]},
+  BL:{name:"Basel-Landschaft",parts:[51,56,496]},
+  BS:{name:"Basel-Stadt",parts:[52,494,495]},
+  AG:{name:"Aargau",parts:[48,353,354,355,356,357,358]},
+  LU:{name:"Luzern",parts:[47,312,313,314,315]},
+  VS:{name:"Wallis",parts:[45,374,375,376]},
+  OW:{name:"Obwalden",parts:[49,50,491]},
+  NW:{name:"Nidwalden",parts:[44]},
+  UR:{name:"Uri",parts:[43,316,317,318]},
+  TI:{name:"Tessin",parts:[37,365,366,367,368,369]},
+  SZ:{name:"Schwyz",parts:[46,319,320,321,322]},
+  ZG:{name:"Zug",parts:[39,328,329]},
+  ZH:{name:"Zürich",parts:[42,303,304,305,306,307]},
+  GL:{name:"Glarus",parts:[36,323,324,325,326,327]},
+  SH:{name:"Schaffhausen",parts:[38,40,281]},
+  TG:{name:"Thurgau",parts:[41,359,360,361,362,363,364]},
+  SG:{name:"St. Gallen",parts:[35,337,338,339,340,341,342]},
+  AI:{name:"Appenzell Innerrhoden",parts:[34,500]},
+  AR:{name:"Appenzell Ausserrhoden",parts:[498,499]},
+  GR:{name:"Graubünden",parts:[33,343,344,345,346,347,348,349,350,351,352]}
 };
 
-const PART_TO_GROUP = {};
-Object.entries(MANUAL_GROUPS).forEach(([id,g])=>{
-  g.parts.forEach(n=>PART_TO_GROUP[n]=id);
+const IGNORE_PARTS = new Set([67,68]);
+
+const PART_TO_CANTON = {};
+Object.entries(CANTONS).forEach(([id,canton])=>{
+  canton.parts.forEach(n=>PART_TO_CANTON[n]=id);
 });
 
 let pathParts = [];
@@ -78,51 +104,51 @@ function setupMap(){
     el.dataset.partNr = nr;
     el.classList.add("map-path");
 
-    el.addEventListener("mouseenter",()=>{
-      const groupId = PART_TO_GROUP[nr];
-      if(groupId) highlightGroup(groupId,true);
-    });
+    const cantonId = PART_TO_CANTON[nr];
 
-    el.addEventListener("mouseleave",()=>{
-      const groupId = PART_TO_GROUP[nr];
-      if(groupId) highlightGroup(groupId,false);
-    });
+    if(cantonId && !IGNORE_PARTS.has(nr)){
+      el.classList.add("clickable-canton");
 
-    el.addEventListener("click",e=>{
-      e.stopPropagation();
-      const groupId = PART_TO_GROUP[nr];
-
-      document.querySelectorAll(".group-selected").forEach(x=>{
-        x.classList.remove("group-selected");
+      el.addEventListener("mouseenter",()=>{
+        highlightCanton(cantonId,true);
       });
 
-      if(groupId){
-        selectGroup(groupId);
-        document.getElementById("info").textContent =
-          "Gewählt: " + MANUAL_GROUPS[groupId].name + " (" + groupId + ") über Fläche " + nr;
-      }else{
-        document.getElementById("info").textContent =
-          "Fläche " + nr + " ist noch keinem Kanton zugeordnet.";
-      }
-    });
+      el.addEventListener("mouseleave",()=>{
+        highlightCanton(cantonId,false);
+      });
+
+      el.addEventListener("click",e=>{
+        e.stopPropagation();
+        selectCanton(cantonId,nr);
+      });
+    }else{
+      el.style.pointerEvents = "none";
+    }
   });
 
   document.getElementById("info").textContent =
-    "Karte geladen. Erkannte path-Flächen: " + pathParts.length + ". Jura ist testweise gruppiert.";
+    "Karte geladen. 26 Kantone sind zugeordnet.";
 }
 
-function highlightGroup(groupId,on){
-  MANUAL_GROUPS[groupId].parts.forEach(n=>{
+function highlightCanton(cantonId,on){
+  CANTONS[cantonId].parts.forEach(n=>{
     const el = pathParts[n-1];
     if(el) el.classList.toggle("group-hover",on);
   });
 }
 
-function selectGroup(groupId){
-  MANUAL_GROUPS[groupId].parts.forEach(n=>{
+function selectCanton(cantonId,clickedPart){
+  document.querySelectorAll(".group-selected").forEach(x=>{
+    x.classList.remove("group-selected");
+  });
+
+  CANTONS[cantonId].parts.forEach(n=>{
     const el = pathParts[n-1];
     if(el) el.classList.add("group-selected");
   });
+
+  document.getElementById("info").textContent =
+    "Gewählt: " + CANTONS[cantonId].name + " (" + cantonId + ") über Fläche " + clickedPart;
 }
 </script>
 
