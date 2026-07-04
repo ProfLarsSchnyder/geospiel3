@@ -38,8 +38,10 @@ main{display:grid;grid-template-columns:330px 1fr;gap:20px;padding:20px}
 
 <script>
 const MANUAL_GROUPS = {
-  JU: { name:"Jura", parts:[62,389,390,391,392] },
-  ...
+  JU: {
+    name: "Jura",
+    parts: [62, 389, 390, 391, 392]
+  }
 };
 
 const PART_TO_GROUP = {};
@@ -50,13 +52,18 @@ Object.entries(MANUAL_GROUPS).forEach(([id,g])=>{
 let pathParts = [];
 
 fetch("karte.svg")
-.then(r=>r.text())
+.then(r=>{
+  if(!r.ok) throw new Error("karte.svg nicht gefunden");
+  return r.text();
+})
 .then(svg=>{
   document.getElementById("map").innerHTML = svg;
   setupMap();
 })
-.catch(()=>{
-  document.getElementById("info").textContent = "Karte konnte nicht geladen werden.";
+.catch(err=>{
+  document.getElementById("info").textContent =
+    "Karte konnte nicht geladen werden. Prüfe, ob die Datei genau karte.svg heisst.";
+  console.error(err);
 });
 
 function setupMap(){
