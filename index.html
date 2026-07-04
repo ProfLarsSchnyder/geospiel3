@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Geospiel Schweiz</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:#eef7ff;color:#123}
+header{background:white;padding:18px 24px;box-shadow:0 4px 18px #0002;font-size:24px;font-weight:bold}
+main{display:grid;grid-template-columns:320px 1fr;gap:20px;padding:20px}
+.panel{background:white;border-radius:24px;padding:22px;box-shadow:0 10px 25px #0002}
+#mapBox{background:white;border-radius:24px;padding:16px;box-shadow:0 10px 25px #0002;overflow:auto;height:calc(100vh - 120px)}
+#map svg{width:100%;height:auto}
+.clickable{cursor:pointer;transition:.15s}
+.clickable:hover{filter:brightness(1.25);stroke:#2563eb!important;stroke-width:2!important}
+.selected{fill:#22c55e!important}
+</style>
+</head>
+<body>
+
+<header>🗺️ Schweizer Geografie-Abenteuer</header>
+
+<main>
+  <section class="panel">
+    <h2>Kartentest</h2>
+    <p>Klicke auf eine Fläche der Karte.</p>
+    <p id="info">Karte wird geladen...</p>
+  </section>
+
+  <section id="mapBox">
+    <div id="map"></div>
+  </section>
+</main>
+
+<script>
+fetch("karte.svg")
+  .then(r => r.text())
+  .then(svg => {
+    document.getElementById("map").innerHTML = svg;
+    setupMap();
+  })
+  .catch(err => {
+    document.getElementById("info").textContent =
+      "Karte konnte nicht geladen werden. Prüfe, ob die Datei wirklich karte.svg heisst.";
+  });
+
+function setupMap(){
+  const svg = document.querySelector("#map svg");
+  const paths = svg.querySelectorAll("path");
+
+  document.getElementById("info").textContent =
+    "Karte geladen. Gefundene Flächen: " + paths.length;
+
+  paths.forEach((path, index) => {
+    path.classList.add("clickable");
+
+    path.addEventListener("click", e => {
+      e.stopPropagation();
+
+      document.querySelectorAll(".selected").forEach(x => {
+        x.classList.remove("selected");
+      });
+
+      path.classList.add("selected");
+
+      document.getElementById("info").textContent =
+        "Du hast Fläche " + (index + 1) + " angeklickt.";
+    });
+  });
+}
+</script>
+
+</body>
+</html>
