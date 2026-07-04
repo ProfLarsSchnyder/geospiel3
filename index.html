@@ -6,13 +6,15 @@
 <style>
 body{margin:0;font-family:Arial,sans-serif;background:#eef7ff;color:#123}
 header{background:white;padding:18px 24px;box-shadow:0 4px 18px #0002;font-size:24px;font-weight:bold}
-main{display:grid;grid-template-columns:320px 1fr;gap:20px;padding:20px}
+main{display:grid;grid-template-columns:330px 1fr;gap:20px;padding:20px}
 .panel{background:white;border-radius:24px;padding:22px;box-shadow:0 10px 25px #0002}
 #mapBox{background:white;border-radius:24px;padding:16px;box-shadow:0 10px 25px #0002;overflow:auto;height:calc(100vh - 120px)}
 #map svg{width:100%;height:auto}
-.clickable{cursor:pointer;transition:.15s}
-.clickable:hover{filter:brightness(1.25);stroke:#2563eb!important;stroke-width:2!important}
-.selected{fill:#22c55e!important}
+#map text,#map tspan{pointer-events:none!important}
+.cantonArea{cursor:pointer;transition:.15s}
+.cantonArea:hover{filter:brightness(1.18);stroke:#2563eb!important;stroke-width:2!important}
+.cantonArea.selected{fill:#22c55e!important}
+#debug{font-size:13px;color:#456;line-height:1.4}
 </style>
 </head>
 <body>
@@ -22,8 +24,10 @@ main{display:grid;grid-template-columns:320px 1fr;gap:20px;padding:20px}
 <main>
   <section class="panel">
     <h2>Kartentest</h2>
-    <p>Klicke auf eine Fläche der Karte.</p>
+    <p>Klicke auf einen Kanton.</p>
     <p id="info">Karte wird geladen...</p>
+    <hr>
+    <div id="debug"></div>
   </section>
 
   <section id="mapBox">
@@ -38,34 +42,61 @@ fetch("karte.svg")
     document.getElementById("map").innerHTML = svg;
     setupMap();
   })
-  .catch(err => {
+  .catch(() => {
     document.getElementById("info").textContent =
       "Karte konnte nicht geladen werden. Prüfe, ob die Datei wirklich karte.svg heisst.";
   });
 
 function setupMap(){
   const svg = document.querySelector("#map svg");
-  const paths = svg.querySelectorAll("path");
 
-  document.getElementById("info").textContent =
-    "Karte geladen. Gefundene Flächen: " + paths.length;
+  svg.querySelectorAll("text,tspan").forEach(el=>{
+    el.style.pointerEvents = "none";
+  });
 
-  paths.forEach((path, index) => {
-    path.classList.add("clickable");
+  const allPaths = [...svg.querySelectorAll("path")];
 
-    path.addEventListener("click", e => {
+  const cantonPaths = allPaths.filter(p=>{
+    const box = p.getBBox();
+    const fill = (p.getAttribute("fill") || getComputedStyle(p).fill || "").toLowerCase();
+    const stroke = (p.getAttribute("stroke") || "").toLowerCase();
+
+    const bigEnough = box.width > 5 && box.height > 5;
+    const notWater =
+      !fill.includes("blue") &&
+      !fill.includes("#a") &&
+      !fill.includes("rgb(170") &&
+      !fill.includes("rgb(173") &&
+      !fill.includes("rgb(180");
+    const notBorderOnly = fill !== "none" && fill !== "transparent";
+
+    return bigEnough && notWater && notBorderOnly;
+  });
+
+  cantonPaths.forEach((p,index)=>{
+    p.classList.add("cantonArea");
+    p.dataset.nr = index + 1;
+
+    p.addEventListener("click", e=>{
       e.stopPropagation();
 
-      document.querySelectorAll(".selected").forEach(x => {
+      document.querySelectorAll(".cantonArea.selected").forEach(x=>{
         x.classList.remove("selected");
       });
 
-      path.classList.add("selected");
+      p.classList.add("selected");
 
       document.getElementById("info").textContent =
-        "Du hast Fläche " + (index + 1) + " angeklickt.";
+        "Du hast Fläche " + p.dataset.nr + " angeklickt.";
     });
   });
+
+  document.getElementById("info").textContent =
+    "Karte geladen. Erkannte Flächen: " + cantonPaths.length;
+
+  document.getElementById("debug").innerHTML =
+    "Test: Fahre über AR, AI, BS, BL, ZG und kleine Flächen. " +
+    "Buchstaben sollten jetzt nicht mehr reagieren.";
 }
 </script>
 
