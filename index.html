@@ -9,7 +9,12 @@ header{background:white;padding:18px 24px;box-shadow:0 4px 18px #0002;font-size:
 main{display:grid;grid-template-columns:340px 1fr;gap:20px;padding:20px}
 .panel{background:white;border-radius:24px;padding:22px;box-shadow:0 10px 25px #0002}
 #mapBox{background:white;border-radius:24px;padding:16px;box-shadow:0 10px 25px #0002;overflow:auto;height:calc(100vh - 120px)}
+#mapWrap{position:relative}
 #map svg{width:100%;height:auto;display:block}
+#extraHitLayer{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+.extra-hit{fill:transparent;stroke:transparent;stroke-width:3;pointer-events:auto;cursor:pointer}
+.extra-hit:hover{fill:#2563eb44;stroke:#2563eb}
+.extra-hit.selected{fill:#22c55e88;stroke:#15803d;stroke-width:4}
 .map-path{cursor:default;transition:.12s}
 .clickable-canton{cursor:pointer}
 .group-hover{filter:brightness(1.18);stroke:#2563eb!important;stroke-width:2.5!important}
@@ -31,15 +36,18 @@ code{background:#eef;padding:2px 5px;border-radius:6px}
 <p id="info">Karte wird geladen...</p>
 <hr>
 <p class="small">
-<strong>Debug für AR:</strong><br>
-Wenn du über eine Fläche fährst, erscheint hier die Nummer.
-Fahre über die echte AR-Fläche und notiere die Nummer.
+AR hat jetzt eine zusätzliche unsichtbare Klickfläche. Falls sie leicht daneben liegt, sag mir: links/rechts/oben/unten oder grösser/kleiner.
 </p>
 <p class="small" id="debug">Aktuelle Fläche: –</p>
 </section>
 
 <section id="mapBox">
-<div id="map"></div>
+<div id="mapWrap">
+  <div id="map"></div>
+  <svg id="extraHitLayer" viewBox="0 0 800 538" preserveAspectRatio="xMidYMid meet">
+    <ellipse id="arExtraHit" class="extra-hit" cx="650" cy="150" rx="20" ry="13"></ellipse>
+  </svg>
+</div>
 </section>
 </main>
 
@@ -69,7 +77,7 @@ const CANTONS = {
   TG:{name:"Thurgau",parts:[41,359,360,361,362,363,364],paint:[41]},
   SG:{name:"St. Gallen",parts:[35,337,338,339,340,341,342],paint:[35]},
   AI:{name:"Appenzell Innerrhoden",parts:[34,500],paint:[34]},
-  AR:{name:"Appenzell Ausserrhoden",parts:[498,499],paint:[]},
+  AR:{name:"Appenzell Ausserrhoden",parts:[],paint:["AR_EXTRA"]},
   GR:{name:"Graubünden",parts:[33,343,344,345,346,347,348,349,350,351,352],paint:[33]}
 };
 
@@ -90,6 +98,7 @@ fetch("karte.svg")
 .then(svg=>{
   document.getElementById("map").innerHTML = svg;
   setupMap();
+  setupExtraHits();
 })
 .catch(err=>{
   document.getElementById("info").textContent =
@@ -147,7 +156,25 @@ function setupMap(){
   });
 
   document.getElementById("info").textContent =
-    "Karte geladen. 26 Kantone sind vorbereitet. AR-Fläche bitte mit Debug suchen.";
+    "Karte geladen. 26 Kantone sind vorbereitet. AR-Spezialfläche aktiv.";
+}
+
+function setupExtraHits(){
+  const ar = document.getElementById("arExtraHit");
+
+  ar.addEventListener("mouseenter",()=>{
+    document.getElementById("debug").innerHTML = "Extra-Fläche: <code>AR_EXTRA</code>";
+    highlightCanton("AR",true);
+  });
+
+  ar.addEventListener("mouseleave",()=>{
+    highlightCanton("AR",false);
+  });
+
+  ar.addEventListener("click",e=>{
+    e.stopPropagation();
+    selectCanton("AR","AR_EXTRA");
+  });
 }
 
 function getPaintParts(cantonId){
@@ -157,6 +184,11 @@ function getPaintParts(cantonId){
 
 function highlightCanton(cantonId,on){
   getPaintParts(cantonId).forEach(n=>{
+    if(n==="AR_EXTRA"){
+      const ar = document.getElementById("arExtraHit");
+      if(ar) ar.classList.toggle("selected",on);
+      return;
+    }
     const el = pathParts[n-1];
     if(el) el.classList.toggle("group-hover",on);
   });
@@ -166,8 +198,16 @@ function selectCanton(cantonId,clickedPart){
   document.querySelectorAll(".group-selected").forEach(x=>{
     x.classList.remove("group-selected");
   });
+  document.querySelectorAll(".extra-hit.selected").forEach(x=>{
+    x.classList.remove("selected");
+  });
 
   getPaintParts(cantonId).forEach(n=>{
+    if(n==="AR_EXTRA"){
+      const ar = document.getElementById("arExtraHit");
+      if(ar) ar.classList.add("selected");
+      return;
+    }
     const el = pathParts[n-1];
     if(el) el.classList.add("group-selected");
   });
